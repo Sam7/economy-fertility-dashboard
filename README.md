@@ -1,62 +1,64 @@
-# Demographic Futures — interactive prototype
+# Demographic Futures
 
-A dependency-free static web prototype for comparing fertility, migration, ageing and economic-scale scenarios over 100 years.
+Demographic Futures is an interactive scenario playground for exploring how fertility, migration, longevity, retirement age, and productivity assumptions can shape population and economic capacity over 100 years. It is intended for curious readers, educators, and policy or research teams who want to compare assumptions and understand how their effects compound. It is an exploratory model, not an official forecast or policy recommendation.
 
-## Run locally
+![Full-page desktop screenshot of Demographic Futures with the scenario assumptions open](docs/dashboard-full.png)
 
-The simplest option is to open `index.html` directly in a browser.
+## Try it locally
 
-For a local server (recommended):
+Requires Node.js 20 or newer.
 
 ```bash
-cd fertility-scenarios-prototype
-python -m http.server 8080
+npm install
+npm run dev
 ```
 
-Then open `http://localhost:8080`.
+Open the local URL printed by Vite. To check the production build locally:
 
-## What is implemented
+```bash
+npm run build
+npm run preview
+```
 
-- Persistent left/right Scenario A vs Scenario B comparison
-- Compact sticky desktop control bar so fertility and migration remain editable while scrolling
-- Collapsible advanced assumptions for population, long-run fertility, life expectancy, effective retirement age and output-per-worker growth
-- 22 real-country presets plus a synthetic 10m model population
-- Countries: Australia, Japan, China, India, South Korea, Indonesia, Singapore, Pakistan, Germany, United Kingdom, France, Italy, Spain, Poland, United States, Canada, Brazil, Mexico, Israel, Saudi Arabia, Nigeria and Niger
-- Curated one-click contrasts including China vs India, South Korea vs Niger, Japan vs Israel and Australia with/without migration
-- 100-year cohort-component demographic projection from 2026–2126
-- Optional TFR path from the selected 2026 fertility rate to a user-set 2100 TFR, then held constant
-- Interactive year scrubber
-- Population, births, age structure and worker-support visualisations
-- 2025 country GDP baselines in both market US dollars and purchasing-power-parity international dollars
-- Economic view toggle: PPP (default), market-USD anchor, or normalized index
-- Explicit A/B GDP crossover / overtake year when one occurs
-- GDP-per-person projection alongside total GDP
-- Counterfactual migration rate required to return to starting population after 100 years
-- Shareable state via URL hash
-- Responsive layout; no external JS/CSS dependencies
+## Deploy to Vercel
 
-## Data/model notes
+The app is a static Vite site. Import this repository into Vercel and deploy with:
 
-The demographic engine uses one-year age cohorts, an age-specific fertility curve, a mortality curve calibrated to life expectancy, and a young-adult-heavy migration profile. The expanded international country library uses 2026 indicators derived from **UN World Population Prospects 2024** for population, fertility, life expectancy and net migration. Starting age profiles are constrained to published youth and old-age dependency ratios. To keep the static prototype small, most countries use generated five-year age distributions that match those broad age shares rather than bundling the full UN single-age dataset. Australia and Japan retain the more detailed profiles from the original prototype.
+- Build command: `npm run build`
+- Output directory: `dist`
 
-The economic engine is deliberately transparent rather than a black-box macro forecast. Each real country starts from **World Bank WDI 2025 GDP** in both `GDP (current US$)` and `GDP, PPP (current international $)`. Future output is:
+The included `vercel.json` sets these values for the project. The app has no server or environment-variable requirements; its scenario sharing uses the URL hash.
 
-`starting GDP × change in effective workers × compound output-per-worker growth`
+## Use the playground
 
-PPP is the default for long-run cross-country scale comparisons because it avoids having to forecast exchange rates. The market-USD view is anchored to 2025 exchange-rate valuations and then holds relative price/exchange-rate relationships constant; it should be read as a 2025-US$-equivalent scenario, not a forecast of future nominal exchange-rate GDP. The index view sets each economy to 100 at the start and isolates the trajectory from starting size.
+- Choose a starting country or synthetic profile for Scenario A and B, or start from a quick comparison.
+- Adjust fertility and annual net migration with the scenario controls. Open **More assumptions** to edit starting population, 2100 fertility, life expectancy, retirement age, output-per-worker growth, and each scenario’s market and PPP GDP baselines.
+- GDP entries are totals in trillions of US dollars (market) and international dollars (PPP). They stay independent when population changes. Selecting a country loads that country’s GDP defaults; **Reset GDP defaults** restores both GDP figures for the selected country.
+- Use the year slider to inspect outcomes at any point from 2026 to 2126. The economic view can compare PPP, market USD, or a normalized index.
+- Swap or copy scenarios, then use **Copy shareable scenario link** to share the current assumptions, selected year, and economic view.
 
-Effective workers are estimated from an age-specific participation schedule. The user-set **effective retirement age** shifts participation at older ages. It is a scenario lever, not a country-specific statutory pension-age database. Output-per-worker growth is likewise a user assumption; the neutral default is 1% per year for all countries so demographic effects remain visible instead of being hidden inside modelled convergence assumptions.
+## What the model does
 
-UN WPP projections end at 2100. This explorer is not reproducing the UN medium variant. It starts from the selected profile and applies the user's assumptions through 2126. Fertility can be held constant or moved linearly to a selected 2100 TFR; migration is currently held at a constant rate per 1,000 people.
+The demographic projection advances 101 one-year age cohorts annually. Births use an age-specific fertility curve scaled to the selected total fertility rate; survival is calibrated to the life-expectancy input; net migration is distributed using a young-adult-heavy age profile. Fertility can stay at its current value or move linearly to the selected 2100 value, after which it remains constant. Migration is held at a constant rate per 1,000 people.
 
-Country presets are starting points, not official national forecasts.
+The economic projection starts from each scenario’s market and PPP GDP totals and applies the change in estimated effective workers and the assumed annual output-per-worker growth. Effective workers use a generic participation schedule that shifts at the selected retirement age. The market-USD view holds relative exchange-rate and price relationships constant; it does not forecast future exchange rates. GDP per person is a model proxy, not a living-standards forecast.
 
-## Recommended production upgrades
+The 22 country presets use indicators derived from UN World Population Prospects 2024 and World Bank WDI data, with source links in the app. Most starting age profiles are generated to match broad dependency ratios rather than using complete single-year age data. Australia and Japan use more detailed starting profiles. Country values are rounded inputs and presets are starting points, not official country forecasts. The synthetic 10m profile uses illustrative $1T market and PPP baselines.
 
-1. Bundle/import the full UN WPP single-year-age-by-sex dataset for all countries instead of generated starting pyramids.
-2. Add time-varying migration and mortality paths plus uncertainty bands.
-3. Replace the generic participation schedule with country-specific age/sex labour-force participation from ILOSTAT, while retaining retirement/policy overrides.
-4. Add an optional productivity-convergence model, clearly separated from the neutral demography-only baseline.
-5. Add fixed-number vs rate-based migration modes and migrant age/skill composition.
-6. Add fiscal modules for pensions, health and tax-base pressure.
-7. Add saved named scenarios, export PNG/SVG/CSV and embeddable links.
+## Checks and screenshot
+
+```bash
+npm test
+npm run build
+npx playwright install chromium
+npm run test:e2e
+```
+
+The browser checks cover the mobile layout and the full-page README screenshot. Regenerate that screenshot after UI changes with:
+
+```bash
+npm run build
+npm run capture:screenshot
+```
+
+The screenshot is saved to `docs/dashboard-full.png`.
