@@ -242,7 +242,8 @@ function survivalForLifeExpectancy(target: number): number[] {
 }
 
 function participation(age: number, retirementAge = 65): number {
-  const retirement = clamp(60, 75, Number(retirementAge) || 65);
+  const parsedRetirementAge = Number(retirementAge);
+  const retirement = Number.isFinite(parsedRetirementAge) ? parsedRetirementAge : 65;
   if (age < 16) return 0;
   if (age < 20) return 0.35;
   if (age < 25) return 0.67;
@@ -296,13 +297,8 @@ export function createScenarioFromCountry(
   return scenario;
 }
 
-export function resetScenarioGdp(scenario: Scenario): Scenario {
-  const country = countries[scenario.country] ?? countries.model10m;
-  return {
-    ...scenario,
-    gdpMarketTrillions: country.gdpMarketTrillions,
-    gdpPppTrillions: country.gdpPppTrillions,
-  };
+export function resetScenarioToCountryDefaults(scenario: Scenario): Scenario {
+  return createScenarioFromCountry(scenario.country);
 }
 
 export const presets: Record<string, Preset> = {
@@ -475,7 +471,8 @@ function scenarioFromSharedState(raw: Partial<Scenario>, fallbackTitle: string):
   const countryId = raw.country && countries[raw.country] ? raw.country : 'model10m';
   const country = countries[countryId];
   const defaults = createScenarioFromCountry(countryId, fallbackTitle);
-  const population = clamp(100_000, 2_000_000_000, validNumber(raw.population, defaults.population));
+  const parsedPopulation = validNumber(raw.population, defaults.population);
+  const population = parsedPopulation > 0 ? parsedPopulation : defaults.population;
   // Existing share links did not store GDP values. Retain their former population-scaled baseline.
   const legacyScale = population / country.population;
   const marketGdp = validNumber(raw.gdpMarketTrillions, country.gdpMarketTrillions * legacyScale);
@@ -486,12 +483,12 @@ function scenarioFromSharedState(raw: Partial<Scenario>, fallbackTitle: string):
     country: countryId,
     population,
     title: typeof raw.title === 'string' ? raw.title : fallbackTitle,
-    tfr: clamp(0.6, 6.5, validNumber(raw.tfr, defaults.tfr)),
-    tfr2100: clamp(0.6, 6.5, validNumber(raw.tfr2100, validNumber(raw.tfr, defaults.tfr))),
-    migration: clamp(-60, 80, validNumber(raw.migration, defaults.migration)),
-    life: clamp(45, 92, validNumber(raw.life, defaults.life)),
-    productivity: clamp(-1, 4, validNumber(raw.productivity, defaults.productivity)),
-    retirement: clamp(60, 75, validNumber(raw.retirement, defaults.retirement)),
+    tfr: Math.max(0, validNumber(raw.tfr, defaults.tfr)),
+    tfr2100: Math.max(0, validNumber(raw.tfr2100, validNumber(raw.tfr, defaults.tfr))),
+    migration: validNumber(raw.migration, defaults.migration),
+    life: Math.max(0.1, validNumber(raw.life, defaults.life)),
+    productivity: Math.max(-100, validNumber(raw.productivity, defaults.productivity)),
+    retirement: validNumber(raw.retirement, defaults.retirement),
     gdpMarketTrillions: Math.max(0, marketGdp),
     gdpPppTrillions: Math.max(0, pppGdp),
   };

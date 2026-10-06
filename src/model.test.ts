@@ -6,7 +6,7 @@ import {
   defaultAppState,
   economicBaselines,
   encodeAppState,
-  resetScenarioGdp,
+  resetScenarioToCountryDefaults,
   runScenario,
   type AppState,
 } from './model';
@@ -21,17 +21,20 @@ describe('demographic and economic model', () => {
     expect(start.pop).toBeCloseTo(20_000_000, 6);
   });
 
-  it('resets both GDP measures to the selected country defaults', () => {
+  it('resets every assumption to the selected country defaults', () => {
     const scenario = {
       ...createScenarioFromCountry('japan', 'Japan custom'),
       gdpMarketTrillions: 9,
       gdpPppTrillions: 10,
       population: 1_000_000,
+      tfr: 9,
+      tfr2100: 12,
+      migration: 100,
+      life: 50,
+      retirement: 100,
+      productivity: 8,
     };
-    const reset = resetScenarioGdp(scenario);
-    expect(reset.gdpMarketTrillions).toBe(countries.japan.gdpMarketTrillions);
-    expect(reset.gdpPppTrillions).toBe(countries.japan.gdpPppTrillions);
-    expect(reset.population).toBe(scenario.population);
+    expect(resetScenarioToCountryDefaults(scenario)).toEqual(createScenarioFromCountry('japan'));
   });
 
   it('loads a country with its starting indicators and independent GDP defaults', () => {
@@ -60,6 +63,33 @@ describe('demographic and economic model', () => {
     expect(oldLinkState?.a.gdpMarketTrillions).toBeCloseTo(countries.australia.gdpMarketTrillions * 2);
     expect(oldLinkState?.year).toBe(2080);
     expect(oldLinkState?.activePreset).toBeNull();
+  });
+
+  it('preserves broad user-entered assumptions in share links', () => {
+    const custom: AppState = {
+      ...defaultAppState,
+      a: {
+        ...defaultAppState.a,
+        population: 2_500_000_000,
+        tfr: 12,
+        tfr2100: 25,
+        migration: 150,
+        life: 105,
+        retirement: 100,
+        productivity: 18,
+        gdpMarketTrillions: 1200,
+        gdpPppTrillions: 900,
+      },
+    };
+    const decoded = decodeAppState(encodeAppState(custom));
+    expect(decoded?.a).toMatchObject(custom.a);
+  });
+
+  it('uses retirement ages outside the former 60 to 75 year range', () => {
+    const scenario = { ...defaultAppState.a, retirement: 100 };
+    const olderRetirement = runScenario(scenario);
+    const earlierRetirement = runScenario({ ...scenario, retirement: 50 });
+    expect(olderRetirement[0].effectiveWorkers).toBeGreaterThan(earlierRetirement[0].effectiveWorkers);
   });
 
   it('produces one annual point for each year from 2026 through 2126', () => {

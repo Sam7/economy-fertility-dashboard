@@ -4,7 +4,6 @@ import {
   END_YEAR,
   START_YEAR,
   applyPreset,
-  clamp,
   compactNumber,
   countries,
   countryGroupOrder,
@@ -14,7 +13,7 @@ import {
   initialAppState,
   presets,
   requiredMigrationForFlatPopulation,
-  resetScenarioGdp,
+  resetScenarioToCountryDefaults,
   runScenario,
   signed,
   signedPct,
@@ -74,28 +73,30 @@ interface NumericInputProps {
   label: string;
   value: number;
   displayValue?: string;
-  min: number;
-  max: number;
-  step: number;
+  min?: number;
+  max?: number;
+  step: number | 'any';
   onCommit: (value: number) => void;
   hint?: string;
+  compact?: boolean;
 }
 
-function NumericInput({ id, label, value, displayValue, min, max, step, onCommit, hint }: NumericInputProps) {
+function NumericInput({ id, label, value, displayValue, min, max, step, onCommit, hint, compact = false }: NumericInputProps) {
   const [draft, setDraft] = useState(displayValue ?? String(value));
   useEffect(() => setDraft(displayValue ?? String(value)), [displayValue, value]);
 
   function commit() {
-    if (!draft.trim() || !Number.isFinite(Number(draft))) {
+    const parsed = Number(draft);
+    if (!draft.trim() || !Number.isFinite(parsed) || (min != null && parsed < min) || (max != null && parsed > max)) {
       setDraft(displayValue ?? String(value));
       return;
     }
-    onCommit(clamp(min, max, Number(draft)));
+    onCommit(parsed);
   }
 
   return (
-    <label className="mini-field" htmlFor={id}>
-      <span>{label}</span>
+    <label className={`mini-field ${compact ? 'compact-number-field' : ''}`} htmlFor={id}>
+      <span className={compact ? 'sr-only' : ''}>{label}</span>
       <input
         id={id}
         type="number"
@@ -118,9 +119,10 @@ interface ScenarioControlsProps {
   scenario: Scenario;
   onChange: (patch: Partial<Scenario>) => void;
   onCountryChange: (countryId: string) => void;
+  onResetScenario: () => void;
 }
 
-function ScenarioControls({ side, scenario, onChange, onCountryChange }: ScenarioControlsProps) {
+function ScenarioControls({ side, scenario, onChange, onCountryChange, onResetScenario }: ScenarioControlsProps) {
   const upperSide = side.toUpperCase();
   const country = countries[scenario.country] ?? countries.model10m;
   const firstYearMigration = scenario.population * scenario.migration / 1000;
@@ -132,7 +134,7 @@ function ScenarioControls({ side, scenario, onChange, onCountryChange }: Scenari
           <span className="scenario-tag">SCENARIO {upperSide}</span>
           <h2>{scenario.title}</h2>
         </div>
-        <span className="scenario-dot" aria-hidden="true" />
+        <button className="scenario-reset" type="button" title={`Reset all Scenario ${upperSide} assumptions to ${country.label} defaults`} aria-label={`Reset Scenario ${upperSide} to ${country.label} defaults`} onClick={onResetScenario}>↺</button>
       </div>
       <label className="compact-field country-field" htmlFor={`country-${side}`}>
         <span>Country / starting profile</span>
@@ -149,72 +151,82 @@ function ScenarioControls({ side, scenario, onChange, onCountryChange }: Scenari
       </label>
       <div className="compact-control-grid">
         <div className="compact-control">
-          <div className="control-top"><label htmlFor={`tfr-${side}`}>Fertility · TFR</label><output htmlFor={`tfr-${side}`}>{scenario.tfr.toFixed(2)}</output></div>
+          <div className="control-top"><span>Total fertility rate (TFR)</span><NumericInput compact id={`tfr-number-${side}`} label={`Scenario ${upperSide} total fertility rate (TFR)`} value={scenario.tfr} min={0} step="any" onCommit={(tfr) => onChange({ tfr, tfr2100: tfr, title: `${country.label} · fertility ${tfr.toFixed(2)}` })} /></div>
           <input
             id={`tfr-${side}`}
             className="range"
             type="range"
-            min="0.6"
-            max="6.5"
+            min={Math.min(0.6, scenario.tfr)}
+            max={Math.max(6.5, scenario.tfr)}
             step="0.01"
             value={scenario.tfr}
             onChange={(event) => {
               const tfr = Number(event.target.value);
-              onChange({ tfr, tfr2100: tfr, title: `${country.label} · TFR ${tfr.toFixed(2)}` });
+              onChange({ tfr, tfr2100: tfr, title: `${country.label} · fertility ${tfr.toFixed(2)}` });
             }}
           />
-          <div className="scale-labels"><span>0.6</span><span>2.1 replacement*</span><span>6.5</span></div>
+          <div className="scale-labels"><span>{Math.min(0.6, scenario.tfr)}</span><span>2.1 replacement*</span><span>{Math.max(6.5, scenario.tfr)}</span></div>
         </div>
         <div className="compact-control">
-          <div className="control-top"><label htmlFor={`migration-${side}`}>Net migration / 1,000 / yr</label><output htmlFor={`migration-${side}`}>{signed(scenario.migration, 1)}</output></div>
+          <div className="control-top"><span>Net migration per 1,000 people per year</span><NumericInput compact id={`migration-number-${side}`} label={`Scenario ${upperSide} net migration per 1,000 people per year`} value={scenario.migration} step="any" onCommit={(migration) => onChange({ migration, title: `${country.label} · custom` })} /></div>
           <input
             id={`migration-${side}`}
             className="range"
             type="range"
-            min="-10"
-            max="20"
+            min={Math.min(-10, scenario.migration)}
+            max={Math.max(20, scenario.migration)}
             step="0.1"
             value={scenario.migration}
             onChange={(event) => onChange({ migration: Number(event.target.value), title: `${country.label} · custom` })}
           />
-          <div className="scale-labels"><span>−10</span><span>≈ {firstYearMigration >= 0 ? '+' : ''}{compactNumber(firstYearMigration)} people in year 1</span><span>+20</span></div>
+          <div className="scale-labels"><span>{Math.min(-10, scenario.migration)}</span><span>≈ {firstYearMigration >= 0 ? '+' : ''}{compactNumber(firstYearMigration)} people in year 1</span><span>{Math.max(20, scenario.migration)}</span></div>
         </div>
       </div>
     </article>
   );
 }
 
-function ScenarioAssumptions({ side, scenario, onChange, onResetGdp }: {
+function ScenarioAssumptions({ side, scenario, onChange }: {
   side: Side;
   scenario: Scenario;
   onChange: (patch: Partial<Scenario>) => void;
-  onResetGdp: () => void;
 }) {
-  const country = countries[scenario.country] ?? countries.model10m;
   const upperSide = side.toUpperCase();
   return (
     <section className={`advanced-side advanced-${side}`} aria-label={`Scenario ${upperSide} assumptions`}>
       <span className="scenario-tag">SCENARIO {upperSide}</span>
       <div className="advanced-fields">
-        <div className="gdp-assumption-grid">
-          <NumericInput id={`gdp-market-${side}`} label="Market GDP · US$T" value={scenario.gdpMarketTrillions} min={0} max={1000} step={0.01} onCommit={(value) => onChange({ gdpMarketTrillions: value })} hint="Starting total" />
-          <NumericInput id={`gdp-ppp-${side}`} label="PPP GDP · Intl$T" value={scenario.gdpPppTrillions} min={0} max={1000} step={0.01} onCommit={(value) => onChange({ gdpPppTrillions: value })} hint="Starting total" />
-        </div>
-        <button className="gdp-reset" type="button" onClick={onResetGdp} aria-label={`Reset Scenario ${upperSide} GDP to ${country.label} defaults`}>Reset GDP defaults</button>
-        <NumericInput
-          id={`population-input-${side}`}
-          label="Starting population (m)"
-          value={scenario.population / 1e6}
-          displayValue={(scenario.population / 1e6).toFixed(2).replace(/\.00$/, '')}
-          min={0.1}
-          max={2000}
-          step={0.1}
-          onCommit={(value) => onChange({ population: value * 1e6, title: `${country.label} · custom` })}
-        />
-        <NumericInput id={`tfr2100-${side}`} label="TFR in 2100" value={scenario.tfr2100} min={0.6} max={6.5} step={0.01} onCommit={(value) => onChange({ tfr2100: value })} />
-        <NumericInput id={`life-${side}`} label="Life expectancy" value={scenario.life} min={45} max={92} step={0.1} onCommit={(value) => onChange({ life: value })} />
-        <NumericInput id={`retirement-${side}`} label="Retirement age" value={scenario.retirement} min={60} max={75} step={1} onCommit={(value) => onChange({ retirement: value })} />
-        <NumericInput id={`productivity-${side}`} label="Output / worker growth · yr (%)" value={scenario.productivity} min={-1} max={4} step={0.1} onCommit={(value) => onChange({ productivity: value })} />
+        <section className="assumption-group">
+          <h3>Starting gross domestic product (GDP)</h3>
+          <p className="assumption-note">Enter totals in trillions. Purchasing power parity (PPP) uses international dollars; market values use United States dollars (USD).</p>
+          <div className="assumption-group-fields two">
+            <NumericInput id={`gdp-market-${side}`} label="Market GDP · United States dollars (USD), trillions" value={scenario.gdpMarketTrillions} min={0} step="any" onCommit={(value) => onChange({ gdpMarketTrillions: value })} />
+            <NumericInput id={`gdp-ppp-${side}`} label="GDP at purchasing power parity (PPP), international dollars, trillions" value={scenario.gdpPppTrillions} min={0} step="any" onCommit={(value) => onChange({ gdpPppTrillions: value })} />
+          </div>
+        </section>
+        <section className="assumption-group">
+          <h3>Population and fertility</h3>
+          <div className="assumption-group-fields two">
+            <NumericInput
+              id={`population-input-${side}`}
+              label="Starting population (millions)"
+              value={scenario.population / 1e6}
+              displayValue={(scenario.population / 1e6).toPrecision(6).replace(/\.?0+$/, '')}
+              min={0.000001}
+              step="any"
+              onCommit={(value) => onChange({ population: value * 1e6, title: `${countries[scenario.country].label} · custom` })}
+            />
+            <NumericInput id={`tfr2100-${side}`} label="Total fertility rate (TFR) in 2100" value={scenario.tfr2100} min={0} step="any" onCommit={(value) => onChange({ tfr2100: value })} />
+          </div>
+        </section>
+        <section className="assumption-group">
+          <h3>Longevity & productivity</h3>
+          <div className="assumption-group-fields three">
+            <NumericInput id={`life-${side}`} label="Life expectancy" value={scenario.life} min={0.1} step="any" onCommit={(value) => onChange({ life: value })} />
+            <NumericInput id={`retirement-${side}`} label="Retirement age" value={scenario.retirement} step="any" onCommit={(value) => onChange({ retirement: value })} />
+            <NumericInput id={`productivity-${side}`} label="Output per worker growth per year (%)" value={scenario.productivity} min={-100} step="any" onCommit={(value) => onChange({ productivity: value })} />
+          </div>
+        </section>
       </div>
     </section>
   );
@@ -229,7 +241,7 @@ function OutcomeCard({ side, scenario, point, start }: { side: Side; scenario: S
       <div className="big-caption">population</div>
       <div className="metric-grid">
         <div><strong>{signedPct(point.pop / start.pop - 1)}</strong><span>vs start</span></div>
-        <div><strong>{compactNumber(point.births)}</strong><span>births / yr</span></div>
+        <div><strong>{compactNumber(point.births)}</strong><span>births per year</span></div>
         <div><strong>{pct(point.older / point.pop)}</strong><span>aged 65+</span></div>
         <div><strong>{point.support.toFixed(2)}</strong><span>workers / 65+</span></div>
       </div>
@@ -296,8 +308,8 @@ function EconomySection({ state, a, b, selectedA, selectedB, onModeChange }: {
     : (value: number) => `$${value.toFixed(value >= 10 ? 1 : 2).replace(/\.0$/, '')}T`;
   const modeCopy = mode === 'market'
     ? {
-      label: 'Market USD',
-      note: '2025 market-US$ starting values; future lines hold relative price/exchange-rate relationships constant and apply workforce × output-per-worker growth.',
+      label: 'Market United States dollars (USD)',
+      note: '2025 market values; future lines hold relative price and exchange-rate relationships constant and apply workforce × output-per-worker growth.',
       totalTitle: 'GDP · market USD anchor', totalUnit: '2025 US$ equivalent',
       pcTitle: 'GDP per person · market USD', pcUnit: '2025 US$ equivalent',
     }
@@ -309,7 +321,7 @@ function EconomySection({ state, a, b, selectedA, selectedB, onModeChange }: {
         pcTitle: 'GDP per capita index', pcUnit: '2026 = 100',
       }
       : {
-        label: 'PPP',
+        label: 'Purchasing power parity (PPP)',
         note: '2025 purchasing-power-parity starting values; a useful default for long-run real-volume comparisons because it avoids forecasting exchange rates.',
         totalTitle: 'GDP · PPP anchor', totalUnit: '2025 international-$ equivalent',
         pcTitle: 'GDP per person · PPP', pcUnit: '2025 international-$ equivalent',
@@ -322,11 +334,11 @@ function EconomySection({ state, a, b, selectedA, selectedB, onModeChange }: {
       <div className="section-heading economy-heading">
         <div><span className="section-kicker">ECONOMIC LAYER</span><h2>When does one economy overtake another?</h2></div>
         <div className="economy-intro">
-          <p>Each scenario begins with its editable market and PPP GDP baseline. Future output remains transparent: starting GDP × change in effective workers × assumed output-per-worker growth.</p>
+          <p>Each scenario begins with editable market and purchasing power parity (PPP) gross domestic product (GDP) baselines. Future output remains transparent: starting GDP × change in effective workers × assumed output-per-worker growth.</p>
           <div className="segmented" role="group" aria-label="Economic comparison basis">
             {(['ppp', 'market', 'index'] as const).map((option) => (
               <button key={option} type="button" className={mode === option ? 'active' : ''} aria-pressed={mode === option} onClick={() => onModeChange(option)}>
-                {option === 'market' ? 'Market USD' : option.toUpperCase()}
+                {option === 'market' ? 'Market USD' : option === 'ppp' ? 'PPP' : 'Index'}
               </button>
             ))}
           </div>
@@ -349,8 +361,8 @@ function EconomySection({ state, a, b, selectedA, selectedB, onModeChange }: {
         </article>
       </div>
       <div className="research-row">
-        <article><span>OECD 2025</span><strong>1.0% → 0.6%</strong><p>Average OECD GDP-per-capita growth could fall roughly this much by 2024–60 from demographic ageing under unchanged participation and productivity assumptions.</p></article>
-        <article><span>Migration lever</span><strong>+0.13 pp</strong><p>Raising net migration to the 75th percentile of recent OECD experience was estimated to lift median GDP-per-capita growth by about 0.13 percentage points versus zero migration.</p></article>
+        <article><span>Organisation for Economic Co-operation and Development (OECD), 2025</span><strong>1.0% → 0.6%</strong><p>Average OECD gross domestic product (GDP) per person growth could fall roughly this much by 2024–60 from demographic ageing under unchanged participation and productivity assumptions.</p></article>
+        <article><span>Migration lever</span><strong>+0.13 percentage points</strong><p>Raising net migration to the 75th percentile of recent OECD experience was estimated to lift median GDP-per-capita growth by about 0.13 percentage points versus zero migration.</p></article>
         <article><span>Important caveat</span><strong>Not destiny</strong><p>Later retirement, higher participation, capital deepening, skills, automation and productivity can materially change the economic outcome.</p></article>
       </div>
     </section>
@@ -358,16 +370,16 @@ function EconomySection({ state, a, b, selectedA, selectedB, onModeChange }: {
 }
 
 const sources = [
-  ['ABS · population & migration', 'https://www.abs.gov.au/statistics/people/population/national-state-and-territory-population/mar-2026'],
-  ['ABS · fertility', 'https://www.abs.gov.au/statistics/people/population/births-australia/2024'],
+  ['Australian Bureau of Statistics (ABS) · population & migration', 'https://www.abs.gov.au/statistics/people/population/national-state-and-territory-population/mar-2026'],
+  ['Australian Bureau of Statistics (ABS) · fertility', 'https://www.abs.gov.au/statistics/people/population/births-australia/2024'],
   ['Japan Statistics Bureau · population', 'https://www.stat.go.jp/data/jinsui/new.htm'],
   ['Japan MHLW · fertility', 'https://www.mhlw.go.jp/toukei/saikin/hw/jinkou/kakutei24/index.html'],
-  ['OECD · ageing & growth', 'https://www.oecd.org/en/publications/oecd-employment-outlook-2025_194a947b-en/full-report/setting-the-scene-demographic-change-economic-growth-and-intergenerational-inequalities_9d481169.html'],
-  ['UN WPP 2024 · demographic dataset', 'https://population.un.org/wpp/Download/Standard/Population/'],
+  ['Organisation for Economic Co-operation and Development (OECD) · ageing & growth', 'https://www.oecd.org/en/publications/oecd-employment-outlook-2025_194a947b-en/full-report/setting-the-scene-demographic-change-economic-growth-and-intergenerational-inequalities_9d481169.html'],
+  ['United Nations World Population Prospects (UN WPP) 2024 · demographic dataset', 'https://population.un.org/wpp/Download/Standard/Population/'],
   ['PopulationClock · WPP-derived indicators', 'https://populationclock.org/'],
-  ['UN WPP · projection methodology', 'https://population.un.org/wpp/'],
-  ['World Bank WDI · market GDP', 'https://data.worldbank.org/indicator/NY.GDP.MKTP.CD'],
-  ['World Bank WDI · PPP GDP', 'https://data.worldbank.org/indicator/NY.GDP.MKTP.PP.CD'],
+  ['United Nations World Population Prospects (UN WPP) · projection methodology', 'https://population.un.org/wpp/'],
+  ['World Bank World Development Indicators (WDI) · market GDP', 'https://data.worldbank.org/indicator/NY.GDP.MKTP.CD'],
+  ['World Bank World Development Indicators (WDI) · purchasing power parity (PPP) GDP', 'https://data.worldbank.org/indicator/NY.GDP.MKTP.PP.CD'],
 ];
 
 export function App() {
@@ -401,8 +413,8 @@ export function App() {
     }));
   }
 
-  function resetGdp(side: Side) {
-    setState((previous) => ({ ...previous, [side]: resetScenarioGdp(previous[side]), activePreset: null }));
+  function resetScenario(side: Side) {
+    setState((previous) => ({ ...previous, [side]: resetScenarioToCountryDefaults(previous[side]), activePreset: null }));
   }
 
   function setMode(mode: EconomyMode) {
@@ -451,19 +463,19 @@ export function App() {
 
       <section className="sticky-lab" aria-label="Scenario controls">
         <div className="sticky-scenarios">
-          <ScenarioControls side="a" scenario={state.a} onChange={(patch) => updateScenario('a', patch)} onCountryChange={(id) => changeCountry('a', id)} />
+          <ScenarioControls side="a" scenario={state.a} onChange={(patch) => updateScenario('a', patch)} onCountryChange={(id) => changeCountry('a', id)} onResetScenario={() => resetScenario('a')} />
           <div className="scenario-actions" aria-label="Scenario actions">
             <button type="button" title="Swap scenarios" aria-label="Swap scenarios" onClick={() => setState((previous) => ({ ...previous, a: previous.b, b: previous.a, activePreset: null }))}>⇄</button>
             <button type="button" title="Copy A to B" aria-label="Copy Scenario A to B" onClick={() => copyScenario('a', 'b')}>A→B</button>
             <button type="button" title="Copy B to A" aria-label="Copy Scenario B to A" onClick={() => copyScenario('b', 'a')}>B→A</button>
           </div>
-          <ScenarioControls side="b" scenario={state.b} onChange={(patch) => updateScenario('b', patch)} onCountryChange={(id) => changeCountry('b', id)} />
+          <ScenarioControls side="b" scenario={state.b} onChange={(patch) => updateScenario('b', patch)} onCountryChange={(id) => changeCountry('b', id)} onResetScenario={() => resetScenario('b')} />
         </div>
         <details className="sticky-advanced">
-          <summary><span>More assumptions</span><small>editable GDP · population · long-run fertility · longevity · retirement · output / worker</small></summary>
+          <summary><span>More assumptions</span><small>gross domestic product · population · fertility · longevity · retirement · output per worker</small></summary>
           <div className="sticky-advanced-grid">
-            <ScenarioAssumptions side="a" scenario={state.a} onChange={(patch) => updateScenario('a', patch)} onResetGdp={() => resetGdp('a')} />
-            <ScenarioAssumptions side="b" scenario={state.b} onChange={(patch) => updateScenario('b', patch)} onResetGdp={() => resetGdp('b')} />
+            <ScenarioAssumptions side="a" scenario={state.a} onChange={(patch) => updateScenario('a', patch)} />
+            <ScenarioAssumptions side="b" scenario={state.b} onChange={(patch) => updateScenario('b', patch)} />
           </div>
         </details>
       </section>
@@ -487,7 +499,7 @@ export function App() {
         <div className="section-heading"><div><span className="section-kicker">THE COMPOUNDING CURVE</span><h2>Population</h2></div><p>Fertility barely moves the population at first. The gap opens when smaller birth cohorts become smaller parent cohorts.</p></div>
         <div className="chart-card">
           <div className="legend"><span className="legend-a"><i /> <b>{state.a.title}</b></span><span className="legend-b"><i /> <b>{state.b.title}</b></span></div>
-          <LineChart label="Population projection line chart" series={scenarioChartSeries(a, b, (point) => point.pop / 1e6, state)} formatY={(value) => `${value.toFixed(value >= 100 ? 0 : 1)}m`} tooltipY={(value) => `${value.toFixed(2)}m`} />
+          <LineChart label="Population projection line chart, in millions of people" series={scenarioChartSeries(a, b, (point) => point.pop / 1e6, state)} formatY={(value) => `${value.toFixed(value >= 100 ? 0 : 1)} million`} tooltipY={(value) => `${value.toFixed(2)} million people`} />
         </div>
       </section>
 
@@ -526,9 +538,9 @@ export function App() {
         <details>
           <summary>Model, data and caveats</summary>
           <div className="methods-grid">
-            <div><h3>Demographic engine</h3><p>A one-year cohort-component projection ages 101 cohorts forward annually. Births use an age-specific fertility curve scaled to the chosen TFR; survival is calibrated to the life-expectancy assumption; net migration uses a young-adult-heavy age profile. This is a simplified accounting framework for exploration.</p><p><strong>Replacement fertility is not universally 2.1.</strong> It varies with mortality and sex ratios. The 2.1 marker is an intuitive low-mortality-country benchmark.</p></div>
-            <div><h3>Economic engine</h3><p>Each country starts from the market-US$ and PPP baselines shown in the assumptions. Those totals are editable in trillions and are independent of the starting population. Projections apply changes in effective workers and the explicit output-per-worker growth assumption.</p><p>Workers use a generic age-specific participation schedule. Retirement age shifts older-worker participation. Market GDP holds relative prices and exchange rates constant; it is not a forecast of future nominal exchange-rate GDP.</p></div>
-            <div><h3>Preset data</h3><p>The country library includes 22 country presets plus a synthetic 10m model. International presets use UN World Population Prospects 2024-derived 2026 indicators, with broad age shares calibrated from youth and old-age dependency ratios. Australia and Japan retain more detailed starting profiles.</p><p>Most profiles are generated from broad age shares rather than a full UN single-year-age dataset. Presets are starting points, not official national forecasts. Fertility can move linearly toward a user-set 2100 TFR; migration remains a constant rate.</p></div>
+            <div><h3>Demographic engine</h3><p>A one-year cohort-component projection ages 101 cohorts forward annually. Births use an age-specific fertility curve scaled to the chosen total fertility rate (TFR); survival is calibrated to the life-expectancy assumption; net migration uses a young-adult-heavy age profile. This is a simplified accounting framework for exploration.</p><p><strong>Replacement fertility is not universally 2.1.</strong> It varies with mortality and sex ratios. The 2.1 marker is an intuitive low-mortality-country benchmark.</p></div>
+            <div><h3>Economic engine</h3><p>Each country starts from the market United States dollar (USD) and purchasing power parity (PPP) gross domestic product (GDP) baselines shown in the assumptions. Those totals are editable in trillions and are independent of the starting population. Projections apply changes in effective workers and the explicit output-per-worker growth assumption.</p><p>Workers use a generic age-specific participation schedule. Retirement age shifts older-worker participation. Market GDP holds relative prices and exchange rates constant; it is not a forecast of future nominal exchange-rate GDP.</p></div>
+            <div><h3>Preset data</h3><p>The country library includes 22 country presets plus a synthetic 10-million-person model. International presets use United Nations World Population Prospects (UN WPP) 2024-derived 2026 indicators, with broad age shares calibrated from youth and old-age dependency ratios. Australia and Japan retain more detailed starting profiles.</p><p>Most profiles are generated from broad age shares rather than a full UN single-year-age dataset. Presets are starting points, not official national forecasts. Fertility can move linearly toward a user-set 2100 total fertility rate; migration remains a constant rate.</p></div>
           </div>
           <div className="sources">{sources.map(([label, url]) => <a key={url} href={url} target="_blank" rel="noreferrer">{label}</a>)}</div>
         </details>
