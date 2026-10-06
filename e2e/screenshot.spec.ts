@@ -43,3 +43,21 @@ test('updates economic charts as soon as a numeric spinner changes a value', asy
   await expect.poll(() => page.evaluate(() => window.location.hash)).not.toBe(originalHash);
   await expect.poll(() => graphPath.getAttribute('d')).not.toBe(originalPath);
 });
+
+test('keeps each animated reset glyph centered inside its circular button', async ({ page }) => {
+  await page.goto('/');
+  const reset = page.getByRole('button', { name: 'Reset Scenario A to 10m model population defaults' });
+  const icon = reset.locator('svg');
+  const buttonBox = await reset.boundingBox();
+  const iconBox = await icon.boundingBox();
+
+  expect(buttonBox).not.toBeNull();
+  expect(iconBox).not.toBeNull();
+  expect(Math.abs((buttonBox!.x + buttonBox!.width / 2) - (iconBox!.x + iconBox!.width / 2))).toBeLessThan(0.5);
+  expect(Math.abs((buttonBox!.y + buttonBox!.height / 2) - (iconBox!.y + iconBox!.height / 2))).toBeLessThan(0.5);
+
+  await reset.hover();
+  await expect(reset).toHaveCSS('background-color', 'rgb(220, 228, 255)');
+  await expect(icon).toHaveCSS('transition-duration', '0.72s');
+  await reset.screenshot({ path: 'test-results/reset-icon-hover.png' });
+});

@@ -65,11 +65,19 @@ h1 em { font-weight: 400; color: #555149; }
 .scenario-b { background:linear-gradient(260deg, rgba(249,233,226,.72), rgba(251,250,246,.28) 68%); }
 .compact-scenario-head { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; margin-bottom:9px; }
 .compact-scenario-head h2 { margin:4px 0 0; max-width:100%; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; font-size:15px; letter-spacing:-.015em; }
-.scenario-reset { flex:0 0 auto; display:grid; place-items:center; width:30px; height:30px; margin:0 2px 0 0; border:1px solid rgba(49,87,213,.22); border-radius:50%; background:var(--a-soft); color:var(--a); font-size:19px; line-height:1; cursor:pointer; transition:transform .15s ease, background .15s ease; }
-.scenario-reset:hover { transform:rotate(-35deg); background:#dce4ff; }
+.scenario-reset { flex:0 0 auto; display:grid; place-items:center; width:30px; height:30px; margin:0 2px 0 0; padding:0; border:1px solid rgba(49,87,213,.22); border-radius:50%; background:var(--a-soft); color:var(--a); cursor:pointer; transition:transform .2s ease, background .25s ease, border-color .25s ease, box-shadow .25s ease; }
+.scenario-reset:hover { transform:translateY(-1px); background:#dce4ff; border-color:rgba(49,87,213,.38); box-shadow:0 4px 10px rgba(49,87,213,.16); }
+.scenario-reset:active { transform:translateY(0) scale(.94); }
+.scenario-reset-icon { display:block; width:17px; height:17px; overflow:visible; transform-box:view-box; transform-origin:50% 50%; transition:transform .72s cubic-bezier(.22,1,.36,1); }
+.scenario-reset-icon path { stroke:currentColor; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round; }
+.scenario-reset:is(:hover,:focus-visible) .scenario-reset-icon { transform:rotate(-360deg); }
 .scenario-reset:focus-visible { outline:3px solid rgba(49,87,213,.28); outline-offset:2px; }
 .scenario-b .scenario-reset { border-color:rgba(212,95,57,.24); background:var(--b-soft); color:var(--b); }
-.scenario-b .scenario-reset:hover { background:#f6ded4; }
+.scenario-b .scenario-reset:hover { background:#f6ded4; border-color:rgba(212,95,57,.4); box-shadow:0 4px 10px rgba(212,95,57,.16); }
+@media (prefers-reduced-motion: reduce) {
+  .scenario-reset, .scenario-reset-icon { transition:none; }
+  .scenario-reset:hover, .scenario-reset:active { transform:none; }
+}
 .compact-field { display:grid; gap:4px; min-width:0; }
 .compact-field > span, .control-top label, .mini-field span { font-size:10px; font-weight:750; color:#5f5b54; }
 .country-field { margin-bottom:10px; }

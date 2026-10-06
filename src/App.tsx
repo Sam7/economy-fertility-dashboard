@@ -160,7 +160,11 @@ function ScenarioControls({ side, scenario, onChange, onCountryChange, onResetSc
           <span className="scenario-tag">SCENARIO {upperSide}</span>
           <h2>{scenario.title}</h2>
         </div>
-        <button className="scenario-reset" type="button" title={`Reset all Scenario ${upperSide} assumptions to ${country.label} defaults`} aria-label={`Reset Scenario ${upperSide} to ${country.label} defaults`} onClick={onResetScenario}>↺</button>
+        <button className="scenario-reset" type="button" title={`Reset all Scenario ${upperSide} assumptions to ${country.label} defaults`} aria-label={`Reset Scenario ${upperSide} to ${country.label} defaults`} onClick={onResetScenario}>
+          <svg className="scenario-reset-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true" focusable="false">
+            <path d="M3.05 13A9 9 0 1 0 5.64 5.64L3 8m0-6v6h6" />
+          </svg>
+        </button>
       </div>
       <label className="compact-field country-field" htmlFor={`country-${side}`}>
         <span>Country / starting profile</span>
