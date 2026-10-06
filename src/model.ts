@@ -312,6 +312,11 @@ export const presets: Record<string, Preset> = {
     a: createScenarioFromCountry('australia', 'Australia today'),
     b: createScenarioFromCountry('japan', 'Japan today'),
   },
+  unitedStatesChina: {
+    label: 'United States vs China',
+    a: createScenarioFromCountry('unitedStates', 'United States today'),
+    b: createScenarioFromCountry('china', 'China today'),
+  },
   chinaIndia: {
     label: 'China vs India',
     a: createScenarioFromCountry('china', 'China today'),

@@ -38,6 +38,7 @@ The included `vercel.json` sets these values for the project. The app has no ser
 ## Use the playground
 
 - Choose a starting country or synthetic profile for Scenario A and B, or start from a quick comparison.
+- Quick comparisons include Australia and Japan, Australia with migration on or off, the United States and China, China and India, a fertility-only comparison, and Japan at current or replacement fertility.
 - Adjust the total fertility rate and annual net migration with each scenario’s controls. Open **More assumptions** to edit starting population, the total fertility rate in 2100, life expectancy, retirement age, output-per-worker growth, and gross domestic product (GDP) baselines.
 - GDP inputs are totals in trillions: market values use United States dollars (USD), while purchasing power parity (PPP) values use international dollars. They stay independent when population changes. Selecting a country loads all of its starting assumptions. The round reset button at the upper-right of a scenario restores that entire scenario to the selected country’s defaults.
 - Numeric controls accept values beyond the usual slider ranges, including retirement ages such as 50 or 100. GDP and population must be positive, fertility and life expectancy must be above zero, and annual productivity growth cannot be below -100% because it compounds year over year.

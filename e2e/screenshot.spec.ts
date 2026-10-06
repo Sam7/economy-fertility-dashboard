@@ -5,10 +5,17 @@ test('captures the full dashboard for the README', async ({ page }) => {
   page.on('pageerror', (error) => pageErrors.push(error.message));
   await page.setViewportSize({ width: 1440, height: 1000 });
   await page.goto('/');
+  for (const label of ['Australia vs Japan', 'Australia · migration on/off', 'United States vs China', 'China vs India']) {
+    await expect(page.getByRole('button', { name: label })).toBeVisible();
+  }
+  await page.getByRole('button', { name: 'United States vs China' }).click();
+  await expect(page.getByRole('button', { name: 'United States vs China' })).toHaveAttribute('aria-pressed', 'true');
+  await page.getByRole('button', { name: '1.8 vs 1.4' }).click();
   await page.getByText('More assumptions').click();
   await expect(page.getByRole('spinbutton', { name: 'Market GDP · United States dollars (USD), trillions' }).first()).toBeVisible();
   await expect(page.getByRole('img', { name: 'Population projection line chart' })).toBeVisible();
   expect(pageErrors).toEqual([]);
+  await page.addStyleTag({ content: '.sticky-scenarios { position:relative !important; top:auto !important; }' });
   await page.screenshot({ path: 'docs/dashboard-full.png', fullPage: true, animations: 'disabled' });
 });
 
@@ -17,6 +24,8 @@ test('keeps the key controls usable at a mobile viewport', async ({ page }) => {
   page.on('pageerror', (error) => pageErrors.push(error.message));
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/');
+  await expect(page.getByRole('button', { name: 'Australia vs Japan' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Australia · migration on/off' })).toBeVisible();
   await expect(page.getByRole('slider', { name: 'Selected year' })).toBeVisible();
   const tabA = page.getByRole('tab', { name: /Scenario A/ });
   const tabB = page.getByRole('tab', { name: /Scenario B/ });
@@ -47,14 +56,22 @@ test('keeps the key controls usable at a mobile viewport', async ({ page }) => {
   await tabA.click();
   const widths = await page.evaluate(() => ({ document: document.documentElement.scrollWidth, viewport: window.innerWidth }));
   expect(widths.document).toBeLessThanOrEqual(widths.viewport);
-  await page.evaluate(() => window.scrollTo(0, 900));
-  await expect.poll(() => page.locator('.sticky-scenarios').boundingBox().then((box) => box?.y ?? 1000)).toBeLessThan(1);
+  for (const scrollY of [900, 2200]) {
+    await page.evaluate((y) => window.scrollTo(0, y), scrollY);
+    await expect.poll(() => page.locator('.sticky-scenarios').boundingBox().then((box) => box?.y ?? 1000)).toBeLessThan(1);
+  }
   const populationChart = page.getByRole('img', { name: 'Population projection line chart' });
   const chartBox = await populationChart.boundingBox();
   const chartViewBoxWidth = Number((await populationChart.getAttribute('viewBox'))?.split(' ')[2]);
   expect(Math.abs((chartBox?.width ?? 0) - chartViewBoxWidth)).toBeLessThanOrEqual(1);
-  await page.evaluate(() => window.scrollTo(0, 0));
+  await page.evaluate(() => {
+    document.documentElement.style.scrollBehavior = 'auto';
+    window.scrollTo(0, 0);
+  });
+  await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(0);
+  const screenshotStyle = await page.addStyleTag({ content: '.sticky-scenarios { position:relative !important; top:auto !important; }' });
   await page.screenshot({ path: 'docs/dashboard-mobile.png', fullPage: true, animations: 'disabled' });
+  await screenshotStyle.evaluate((style) => style.remove());
   for (const width of [320, 768]) {
     await page.setViewportSize({ width, height: 844 });
     await expect(page.getByRole('tablist', { name: 'Choose scenario controls' })).toBeVisible();

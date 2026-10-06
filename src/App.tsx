@@ -473,70 +473,64 @@ export function App() {
     <main className="shell">
       <header className="hero">
         <div className="eyebrow">DEMOGRAPHIC FUTURES · SCENARIO PLAYGROUND</div>
-        <div className="hero-grid">
-          <div>
-            <h1>Small fertility differences.<br /><em>Large generational consequences.</em></h1>
-            <p className="lede">Compare two demographic futures over a century. Change fertility, migration and longevity, then watch population, age structure, births, workforce pressure and economic capacity compound.</p>
-          </div>
-          <aside className="hero-note">
-            <span className="note-kicker">Start here</span>
-            <strong>Try 1.8 vs 1.4.</strong>
-            <span>Then turn migration on and off. The timing is the point: migration acts now; fertility acts slowly, then echoes through future generations.</span>
-          </aside>
+        <div className="hero-copy">
+          <h1>Small fertility differences.<br /><em>Large generational consequences.</em></h1>
+          <p className="lede">Compare two demographic futures over a century. Change fertility, migration and longevity, then watch population, age structure, births, workforce pressure and economic capacity compound.</p>
         </div>
       </header>
 
       <section className="preset-strip" aria-label="Quick comparisons">
         <span className="preset-label">Quick comparisons</span>
-        {Object.entries(presets).slice(0, 6).map(([id, preset]) => (
-          <button key={id} type="button" className={`preset ${state.activePreset === id ? 'active' : ''}`} aria-pressed={state.activePreset === id} onClick={() => setState((previous) => applyPreset(previous, id))}>{preset.label}</button>
-        ))}
+        {(['ausJapan', 'ausMigration', 'unitedStatesChina', 'chinaIndia', 'fourTenths', 'japanReplacement'] as const).map((id) => {
+          const preset = presets[id];
+          return (
+            <button key={id} type="button" className={`preset ${state.activePreset === id ? 'active' : ''}`} aria-pressed={state.activePreset === id} onClick={() => setState((previous) => applyPreset(previous, id))}>{preset.label}</button>
+          );
+        })}
       </section>
 
-      <section className="sticky-lab" aria-label="Scenario controls">
-        <div className="sticky-scenarios">
-          <div className="mobile-control-tools">
-            <div className="mobile-scenario-tabs" role="tablist" aria-label="Choose scenario controls">
-              {(['a', 'b'] as const).map((side) => (
-                <button
-                  key={side}
-                  id={`mobile-tab-${side}`}
-                  type="button"
-                  role="tab"
-                  aria-controls={`mobile-panel-${side}`}
-                  aria-selected={mobileSide === side}
-                  tabIndex={mobileSide === side ? 0 : -1}
-                  className={`mobile-scenario-tab mobile-tab-${side} ${mobileSide === side ? 'active' : ''}`}
-                  onClick={() => setMobileSide(side)}
-                  onKeyDown={(event) => {
-                    if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
-                    event.preventDefault();
-                    const nextSide: Side = event.key === 'Home' ? 'a' : event.key === 'End' ? 'b' : side === 'a' ? 'b' : 'a';
-                    setMobileSide(nextSide);
-                    document.getElementById(`mobile-tab-${nextSide}`)?.focus();
-                  }}
-                >
-                  <span>Scenario {side.toUpperCase()}</span><strong>{state[side].title}</strong>
-                </button>
-              ))}
-            </div>
-            <div className="scenario-actions" aria-label="Scenario actions">
+      <section className="sticky-scenarios" aria-label="Scenario controls">
+        <div className="mobile-control-tools">
+          <div className="mobile-scenario-tabs" role="tablist" aria-label="Choose scenario controls">
+            {(['a', 'b'] as const).map((side) => (
+              <button
+                key={side}
+                id={`mobile-tab-${side}`}
+                type="button"
+                role="tab"
+                aria-controls={`mobile-panel-${side}`}
+                aria-selected={mobileSide === side}
+                tabIndex={mobileSide === side ? 0 : -1}
+                className={`mobile-scenario-tab mobile-tab-${side} ${mobileSide === side ? 'active' : ''}`}
+                onClick={() => setMobileSide(side)}
+                onKeyDown={(event) => {
+                  if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
+                  event.preventDefault();
+                  const nextSide: Side = event.key === 'Home' ? 'a' : event.key === 'End' ? 'b' : side === 'a' ? 'b' : 'a';
+                  setMobileSide(nextSide);
+                  document.getElementById(`mobile-tab-${nextSide}`)?.focus();
+                }}
+              >
+                <span>Scenario {side.toUpperCase()}</span><strong>{state[side].title}</strong>
+              </button>
+            ))}
+          </div>
+          <div className="scenario-actions" aria-label="Scenario actions">
             <button type="button" title="Swap scenarios" aria-label="Swap scenarios" onClick={() => setState((previous) => ({ ...previous, a: previous.b, b: previous.a, activePreset: null }))}>⇄</button>
             <button type="button" title="Copy A to B" aria-label="Copy Scenario A to B" onClick={() => copyScenario('a', 'b')}>A→B</button>
             <button type="button" title="Copy B to A" aria-label="Copy Scenario B to A" onClick={() => copyScenario('b', 'a')}>B→A</button>
-            </div>
           </div>
-          <ScenarioControls side="a" scenario={state.a} mobileActive={mobileSide === 'a'} onChange={(patch) => updateScenario('a', patch)} onCountryChange={(id) => changeCountry('a', id)} onResetScenario={() => resetScenario('a')} />
-          <ScenarioControls side="b" scenario={state.b} mobileActive={mobileSide === 'b'} onChange={(patch) => updateScenario('b', patch)} onCountryChange={(id) => changeCountry('b', id)} onResetScenario={() => resetScenario('b')} />
         </div>
-        <details className="sticky-advanced">
-          <summary><span>More assumptions</span><small>gross domestic product · population · fertility · longevity · retirement · output per worker</small></summary>
-          <div className="sticky-advanced-grid">
-            <ScenarioAssumptions side="a" scenario={state.a} mobileActive={mobileSide === 'a'} onChange={(patch) => updateScenario('a', patch)} />
-            <ScenarioAssumptions side="b" scenario={state.b} mobileActive={mobileSide === 'b'} onChange={(patch) => updateScenario('b', patch)} />
-          </div>
-        </details>
+        <ScenarioControls side="a" scenario={state.a} mobileActive={mobileSide === 'a'} onChange={(patch) => updateScenario('a', patch)} onCountryChange={(id) => changeCountry('a', id)} onResetScenario={() => resetScenario('a')} />
+        <ScenarioControls side="b" scenario={state.b} mobileActive={mobileSide === 'b'} onChange={(patch) => updateScenario('b', patch)} onCountryChange={(id) => changeCountry('b', id)} onResetScenario={() => resetScenario('b')} />
       </section>
+      <details className="sticky-advanced">
+        <summary><span>More assumptions</span><small>gross domestic product · population · fertility · longevity · retirement · output per worker</small></summary>
+        <div className="sticky-advanced-grid">
+          <ScenarioAssumptions side="a" scenario={state.a} mobileActive={mobileSide === 'a'} onChange={(patch) => updateScenario('a', patch)} />
+          <ScenarioAssumptions side="b" scenario={state.b} mobileActive={mobileSide === 'b'} onChange={(patch) => updateScenario('b', patch)} />
+        </div>
+      </details>
 
       <section className="time-deck">
         <div><span className="section-kicker">LOOK THROUGH TIME</span><h2>What does the society look like in <strong>{state.year}</strong>?</h2></div>
@@ -554,10 +548,10 @@ export function App() {
       </section>
 
       <section className="viz-section">
-        <div className="section-heading"><div><span className="section-kicker">THE COMPOUNDING CURVE</span><h2>Population</h2></div><p>Fertility barely moves the population at first. The gap opens when smaller birth cohorts become smaller parent cohorts.</p></div>
+        <div className="section-heading"><div><span className="section-kicker">THE COMPOUNDING CURVE</span><h2>Population <span className="unit-note">(millions of people)</span></h2></div><p>Fertility barely moves the population at first. The gap opens when smaller birth cohorts become smaller parent cohorts.</p></div>
         <div className="chart-card">
           <div className="legend"><span className="legend-a"><i /> <b>{state.a.title}</b></span><span className="legend-b"><i /> <b>{state.b.title}</b></span></div>
-          <LineChart label="Population projection line chart, in millions of people" series={scenarioChartSeries(a, b, (point) => point.pop / 1e6, state)} formatY={(value) => `${value.toFixed(value >= 100 ? 0 : 1)} million`} tooltipY={(value) => `${value.toFixed(2)} million people`} />
+          <LineChart label="Population projection line chart, in millions of people" series={scenarioChartSeries(a, b, (point) => point.pop / 1e6, state)} formatY={(value) => `${value.toFixed(value >= 100 ? 0 : 1)}m`} tooltipY={(value) => `${value.toFixed(2)}m people`} />
         </div>
       </section>
 
