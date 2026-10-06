@@ -4,6 +4,32 @@ import { App } from './App';
 import { decodeAppState } from './model';
 
 describe('scenario controls', () => {
+  it('applies valid numeric edits immediately and uses useful spinner steps', () => {
+    const { container } = render(<App />);
+    fireEvent.click(screen.getByText('More assumptions'));
+
+    const fertility = screen.getByRole('spinbutton', { name: 'Scenario A total fertility rate (TFR)' });
+    const marketGdp = screen.getAllByRole('spinbutton', { name: 'Market GDP · United States dollars (USD), trillions' })[0];
+    const population = screen.getAllByRole('spinbutton', { name: 'Starting population (millions)' })[0];
+    const life = screen.getAllByRole('spinbutton', { name: 'Life expectancy' })[0];
+    const retirement = screen.getAllByRole('spinbutton', { name: 'Retirement age' })[0];
+    const productivity = screen.getAllByRole('spinbutton', { name: 'Output per worker growth per year (%)' })[0];
+
+    expect(fertility).toHaveAttribute('step', '0.1');
+    expect(marketGdp).toHaveAttribute('step', '0.1');
+    expect(population).toHaveAttribute('step', '0.1');
+    expect(life).toHaveAttribute('step', '1');
+    expect(retirement).toHaveAttribute('step', '1');
+    expect(productivity).toHaveAttribute('step', '0.1');
+
+    const chart = container.querySelector('svg[aria-label="Population projection line chart, in millions of people"]');
+    expect(chart).not.toBeNull();
+    const pathBefore = chart?.querySelector('path')?.getAttribute('d');
+    fireEvent.change(fertility, { target: { value: '2.4' } });
+    expect(decodeAppState(window.location.hash)?.a.tfr).toBe(2.4);
+    expect(chart?.querySelector('path')?.getAttribute('d')).not.toBe(pathBefore);
+  });
+
   it('edits each GDP side independently and resets every assumption for one scenario', () => {
     render(<App />);
     fireEvent.click(screen.getByText('More assumptions'));

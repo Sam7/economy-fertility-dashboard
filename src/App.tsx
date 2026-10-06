@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { LineChart, type ChartSeries } from './LineChart';
 import {
   END_YEAR,
@@ -48,6 +48,21 @@ function economyFormat(mode: EconomyMode, perCapita = false): (value: number) =>
   return trillions;
 }
 
+function gdpInputStep(trillionsValue: number): number {
+  if (trillionsValue >= 100) return 10;
+  if (trillionsValue >= 10) return 1;
+  if (trillionsValue >= 1) return 0.1;
+  if (trillionsValue >= 0.1) return 0.01;
+  return 0.001;
+}
+
+function populationInputStep(populationInMillions: number): number {
+  if (populationInMillions >= 100) return 1;
+  if (populationInMillions >= 10) return 0.1;
+  if (populationInMillions >= 1) return 0.01;
+  return 0.001;
+}
+
 function crossoverSummary(a: ProjectionPoint[], b: ProjectionPoint[], mode: EconomyMode): string {
   const differenceAt = (index: number) => economyValue(a[index], mode) - economyValue(b[index], mode);
   let previous = differenceAt(0);
@@ -83,7 +98,10 @@ interface NumericInputProps {
 
 function NumericInput({ id, label, value, displayValue, min, max, step, onCommit, hint, compact = false }: NumericInputProps) {
   const [draft, setDraft] = useState(displayValue ?? String(value));
-  useEffect(() => setDraft(displayValue ?? String(value)), [displayValue, value]);
+  const isFocused = useRef(false);
+  useEffect(() => {
+    if (!isFocused.current) setDraft(displayValue ?? String(value));
+  }, [displayValue, value]);
 
   function commit() {
     const parsed = Number(draft);
@@ -105,8 +123,16 @@ function NumericInput({ id, label, value, displayValue, min, max, step, onCommit
         max={max}
         step={step}
         aria-label={label}
-        onChange={(event) => setDraft(event.target.value)}
-        onBlur={commit}
+        onFocus={() => { isFocused.current = true; }}
+        onChange={(event) => {
+          const nextDraft = event.target.value;
+          setDraft(nextDraft);
+          const parsed = Number(nextDraft);
+          if (nextDraft.trim() && Number.isFinite(parsed) && (min == null || parsed >= min) && (max == null || parsed <= max)) {
+            onCommit(parsed);
+          }
+        }}
+        onBlur={() => { isFocused.current = false; commit(); }}
         onKeyDown={(event) => { if (event.key === 'Enter') event.currentTarget.blur(); }}
       />
       {hint && <small className="field-hint">{hint}</small>}
@@ -151,7 +177,7 @@ function ScenarioControls({ side, scenario, onChange, onCountryChange, onResetSc
       </label>
       <div className="compact-control-grid">
         <div className="compact-control">
-          <div className="control-top"><span>Total fertility rate (TFR)</span><NumericInput compact id={`tfr-number-${side}`} label={`Scenario ${upperSide} total fertility rate (TFR)`} value={scenario.tfr} min={0} step="any" onCommit={(tfr) => onChange({ tfr, tfr2100: tfr, title: `${country.label} · fertility ${tfr.toFixed(2)}` })} /></div>
+          <div className="control-top"><span>Total fertility rate (TFR)</span><NumericInput compact id={`tfr-number-${side}`} label={`Scenario ${upperSide} total fertility rate (TFR)`} value={scenario.tfr} min={0} step={0.1} onCommit={(tfr) => onChange({ tfr, tfr2100: tfr, title: `${country.label} · fertility ${tfr.toFixed(2)}` })} /></div>
           <input
             id={`tfr-${side}`}
             className="range"
@@ -168,7 +194,7 @@ function ScenarioControls({ side, scenario, onChange, onCountryChange, onResetSc
           <div className="scale-labels"><span>{Math.min(0.6, scenario.tfr)}</span><span>2.1 replacement*</span><span>{Math.max(6.5, scenario.tfr)}</span></div>
         </div>
         <div className="compact-control">
-          <div className="control-top"><span>Net migration per 1,000 people per year</span><NumericInput compact id={`migration-number-${side}`} label={`Scenario ${upperSide} net migration per 1,000 people per year`} value={scenario.migration} step="any" onCommit={(migration) => onChange({ migration, title: `${country.label} · custom` })} /></div>
+          <div className="control-top"><span>Net migration per 1,000 people per year</span><NumericInput compact id={`migration-number-${side}`} label={`Scenario ${upperSide} net migration per 1,000 people per year`} value={scenario.migration} step={0.1} onCommit={(migration) => onChange({ migration, title: `${country.label} · custom` })} /></div>
           <input
             id={`migration-${side}`}
             className="range"
@@ -200,8 +226,8 @@ function ScenarioAssumptions({ side, scenario, onChange }: {
           <h3>Starting gross domestic product (GDP)</h3>
           <p className="assumption-note">Enter totals in trillions. Purchasing power parity (PPP) uses international dollars; market values use United States dollars (USD).</p>
           <div className="assumption-group-fields two">
-            <NumericInput id={`gdp-market-${side}`} label="Market GDP · United States dollars (USD), trillions" value={scenario.gdpMarketTrillions} min={0} step="any" onCommit={(value) => onChange({ gdpMarketTrillions: value })} />
-            <NumericInput id={`gdp-ppp-${side}`} label="GDP at purchasing power parity (PPP), international dollars, trillions" value={scenario.gdpPppTrillions} min={0} step="any" onCommit={(value) => onChange({ gdpPppTrillions: value })} />
+            <NumericInput id={`gdp-market-${side}`} label="Market GDP · United States dollars (USD), trillions" value={scenario.gdpMarketTrillions} min={0} step={gdpInputStep(scenario.gdpMarketTrillions)} onCommit={(value) => onChange({ gdpMarketTrillions: value })} />
+            <NumericInput id={`gdp-ppp-${side}`} label="GDP at purchasing power parity (PPP), international dollars, trillions" value={scenario.gdpPppTrillions} min={0} step={gdpInputStep(scenario.gdpPppTrillions)} onCommit={(value) => onChange({ gdpPppTrillions: value })} />
           </div>
         </section>
         <section className="assumption-group">
@@ -213,18 +239,18 @@ function ScenarioAssumptions({ side, scenario, onChange }: {
               value={scenario.population / 1e6}
               displayValue={(scenario.population / 1e6).toPrecision(6).replace(/\.?0+$/, '')}
               min={0.000001}
-              step="any"
+              step={populationInputStep(scenario.population / 1e6)}
               onCommit={(value) => onChange({ population: value * 1e6, title: `${countries[scenario.country].label} · custom` })}
             />
-            <NumericInput id={`tfr2100-${side}`} label="Total fertility rate (TFR) in 2100" value={scenario.tfr2100} min={0} step="any" onCommit={(value) => onChange({ tfr2100: value })} />
+            <NumericInput id={`tfr2100-${side}`} label="Total fertility rate (TFR) in 2100" value={scenario.tfr2100} min={0} step={0.1} onCommit={(value) => onChange({ tfr2100: value })} />
           </div>
         </section>
         <section className="assumption-group">
           <h3>Longevity & productivity</h3>
           <div className="assumption-group-fields three">
-            <NumericInput id={`life-${side}`} label="Life expectancy" value={scenario.life} min={0.1} step="any" onCommit={(value) => onChange({ life: value })} />
-            <NumericInput id={`retirement-${side}`} label="Retirement age" value={scenario.retirement} step="any" onCommit={(value) => onChange({ retirement: value })} />
-            <NumericInput id={`productivity-${side}`} label="Output per worker growth per year (%)" value={scenario.productivity} min={-100} step="any" onCommit={(value) => onChange({ productivity: value })} />
+            <NumericInput id={`life-${side}`} label="Life expectancy" value={scenario.life} min={0.1} step={1} onCommit={(value) => onChange({ life: value })} />
+            <NumericInput id={`retirement-${side}`} label="Retirement age" value={scenario.retirement} step={1} onCommit={(value) => onChange({ retirement: value })} />
+            <NumericInput id={`productivity-${side}`} label="Output per worker growth per year (%)" value={scenario.productivity} min={-100} step={0.1} onCommit={(value) => onChange({ productivity: value })} />
           </div>
         </section>
       </div>

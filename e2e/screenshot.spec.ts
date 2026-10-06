@@ -24,3 +24,22 @@ test('keeps the key controls usable at a mobile viewport', async ({ page }) => {
   expect(widths.document).toBeLessThanOrEqual(widths.viewport);
   expect(pageErrors).toEqual([]);
 });
+
+test('updates economic charts as soon as a numeric spinner changes a value', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.goto('/');
+  await page.getByText('More assumptions').click();
+
+  const pppGdp = page.getByRole('spinbutton', { name: 'GDP at purchasing power parity (PPP), international dollars, trillions' }).first();
+  const graph = page.getByRole('img', { name: 'GDP projection' });
+  const graphPath = graph.locator('path').first();
+  const originalPath = await graphPath.getAttribute('d');
+  const originalHash = await page.evaluate(() => window.location.hash);
+
+  await pppGdp.focus();
+  await page.keyboard.press('ArrowUp');
+
+  await expect(pppGdp).toHaveValue('1.1');
+  await expect.poll(() => page.evaluate(() => window.location.hash)).not.toBe(originalHash);
+  await expect.poll(() => graphPath.getAttribute('d')).not.toBe(originalPath);
+});
