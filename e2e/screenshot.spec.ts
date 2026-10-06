@@ -69,6 +69,10 @@ test('keeps the key controls usable at a mobile viewport', async ({ page }) => {
     window.scrollTo(0, 0);
   });
   await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(0);
+  await page.getByText('More assumptions').click();
+  await expect(page.getByRole('spinbutton', { name: 'Market GDP · United States dollars (USD), trillions' }).first()).toBeVisible();
+  const assumptionColumns = await page.locator('.advanced-a .assumption-group-fields.two').first().evaluate((element) => getComputedStyle(element).gridTemplateColumns.split(' ').length);
+  expect(assumptionColumns).toBe(2);
   const screenshotStyle = await page.addStyleTag({ content: '.sticky-scenarios { position:relative !important; top:auto !important; }' });
   await page.screenshot({ path: 'docs/dashboard-mobile.png', fullPage: true, animations: 'disabled' });
   await screenshotStyle.evaluate((style) => style.remove());
