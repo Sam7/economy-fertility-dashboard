@@ -18,10 +18,50 @@ test('keeps the key controls usable at a mobile viewport', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/');
   await expect(page.getByRole('slider', { name: 'Selected year' })).toBeVisible();
+  const tabA = page.getByRole('tab', { name: /Scenario A/ });
+  const tabB = page.getByRole('tab', { name: /Scenario B/ });
+  await expect(tabA).toHaveAttribute('aria-selected', 'true');
+  await tabB.click();
+  await expect(tabB).toHaveAttribute('aria-selected', 'true');
+  await expect(page.getByLabel('Scenario B country')).toBeVisible();
+  await tabB.focus();
+  await page.keyboard.press('ArrowLeft');
+  await expect(tabA).toHaveAttribute('aria-selected', 'true');
+  await tabB.click();
+  const touchTargets = [
+    tabA,
+    tabB,
+    page.getByLabel('Scenario B country'),
+    page.getByRole('button', { name: /Reset Scenario B/ }),
+    page.getByRole('spinbutton', { name: 'Scenario B total fertility rate (TFR)' }),
+    page.getByRole('button', { name: 'Swap scenarios' }),
+  ];
+  for (const target of touchTargets) {
+    const box = await target.boundingBox();
+    const label = await target.getAttribute('aria-label') ?? await target.textContent() ?? 'control';
+    expect(box?.height ?? 0, `${label.trim()} touch height`).toBeGreaterThanOrEqual(44);
+  }
   await page.getByText('More assumptions').click();
   await expect(page.getByRole('spinbutton', { name: 'GDP at purchasing power parity (PPP), international dollars, trillions' }).first()).toBeVisible();
+  await page.getByText('More assumptions').click();
+  await tabA.click();
   const widths = await page.evaluate(() => ({ document: document.documentElement.scrollWidth, viewport: window.innerWidth }));
   expect(widths.document).toBeLessThanOrEqual(widths.viewport);
+  await page.evaluate(() => window.scrollTo(0, 900));
+  await expect.poll(() => page.locator('.sticky-scenarios').boundingBox().then((box) => box?.y ?? 1000)).toBeLessThan(1);
+  const populationChart = page.getByRole('img', { name: 'Population projection line chart' });
+  const chartBox = await populationChart.boundingBox();
+  const chartViewBoxWidth = Number((await populationChart.getAttribute('viewBox'))?.split(' ')[2]);
+  expect(Math.abs((chartBox?.width ?? 0) - chartViewBoxWidth)).toBeLessThanOrEqual(1);
+  await page.evaluate(() => window.scrollTo(0, 0));
+  await page.screenshot({ path: 'docs/dashboard-mobile.png', fullPage: true, animations: 'disabled' });
+  for (const width of [320, 768]) {
+    await page.setViewportSize({ width, height: 844 });
+    await expect(page.getByRole('tablist', { name: 'Choose scenario controls' })).toBeVisible();
+    await expect(page.locator('.sticky-scenarios')).toHaveCSS('position', 'sticky');
+    const responsiveWidths = await page.evaluate(() => ({ document: document.documentElement.scrollWidth, viewport: window.innerWidth }));
+    expect(responsiveWidths.document).toBeLessThanOrEqual(responsiveWidths.viewport);
+  }
   expect(pageErrors).toEqual([]);
 });
 

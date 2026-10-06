@@ -4,6 +4,12 @@ Demographic Futures is an interactive scenario playground for exploring how fert
 
 ![Full-page desktop screenshot of Demographic Futures with the scenario assumptions open](docs/dashboard-full.png)
 
+<details>
+<summary>View the full mobile layout</summary>
+
+![Full-page mobile screenshot of Demographic Futures](docs/dashboard-mobile.png)
+</details>
+
 ## Try it locally
 
 Requires Node.js 20 or newer.

@@ -1,4 +1,4 @@
-import { useState, type MouseEvent } from 'react';
+import { useEffect, useRef, useState, type MouseEvent } from 'react';
 
 export interface ChartPoint {
   year: number;
@@ -25,8 +25,28 @@ const YEARS = [2026, 2050, 2075, 2100, 2126];
 
 export function LineChart({ series, label, formatY, tooltipY, height = 320 }: ChartProps) {
   const [hoverYear, setHoverYear] = useState<number | null>(null);
-  const width = 900;
-  const margin = { top: 24, right: 24, bottom: 42, left: 62 };
+  const wrapperRef = useRef<HTMLDivElement>(null);
+  const [width, setWidth] = useState(900);
+  useEffect(() => {
+    const wrapper = wrapperRef.current;
+    if (!wrapper) return;
+    const measure = () => {
+      const measured = Math.round(wrapper.clientWidth);
+      if (measured > 0) setWidth((previous) => previous === measured ? previous : measured);
+    };
+    measure();
+    if (typeof ResizeObserver === 'undefined') {
+      window.addEventListener('resize', measure);
+      return () => window.removeEventListener('resize', measure);
+    }
+    const observer = new ResizeObserver(measure);
+    observer.observe(wrapper);
+    return () => observer.disconnect();
+  }, []);
+  const chartHeight = width < 560 ? (height < 320 ? 220 : 260) : height;
+  const margin = width < 560
+    ? { top: 18, right: 12, bottom: 34, left: 43 }
+    : { top: 24, right: 24, bottom: 42, left: 62 };
   const values = series.flatMap((line) => line.data.map((point) => point.value)).filter(Number.isFinite);
   let min = Math.min(...values);
   let max = Math.max(...values);
@@ -42,7 +62,7 @@ export function LineChart({ series, label, formatY, tooltipY, height = 320 }: Ch
   max += pad;
   min -= pad * 0.35;
   const x = (year: number) => margin.left + (year - 2026) / 100 * (width - margin.left - margin.right);
-  const y = (value: number) => margin.top + (max - value) / (max - min) * (height - margin.top - margin.bottom);
+  const y = (value: number) => margin.top + (max - value) / (max - min) * (chartHeight - margin.top - margin.bottom);
   const activePoints = hoverYear == null ? [] : series.map((line) => line.data[hoverYear - 2026]);
   const nearestY = activePoints.length ? Math.min(...activePoints.map((point) => y(point.value))) : 0;
 
@@ -54,8 +74,8 @@ function handleMove(event: MouseEvent<SVGSVGElement>) {
   }
 
   return (
-    <div className={`line-chart-wrap ${height < 320 ? 'small' : ''}`}>
-      <svg className="line-chart" viewBox={`0 0 ${width} ${height}`} role="img" aria-label={label} onMouseMove={handleMove} onMouseLeave={() => setHoverYear(null)}>
+    <div ref={wrapperRef} className={`line-chart-wrap ${height < 320 ? 'small' : ''}`}>
+      <svg className="line-chart" viewBox={`0 0 ${width} ${chartHeight}`} role="img" aria-label={label} onMouseMove={handleMove} onMouseLeave={() => setHoverYear(null)}>
         {Array.from({ length: 5 }, (_, index) => {
           const value = min + (max - min) * index / 4;
           const yy = y(value);
@@ -67,7 +87,7 @@ function handleMove(event: MouseEvent<SVGSVGElement>) {
           );
         })}
         {YEARS.map((year) => (
-          <text key={year} x={x(year)} y={height - 14} textAnchor="middle" fontSize="11" fill={TEXT_COLOR}>{year}</text>
+          <text key={year} x={x(year)} y={chartHeight - 14} textAnchor="middle" fontSize="11" fill={TEXT_COLOR}>{year}</text>
         ))}
         {series.map((line) => {
           const path = line.data.map((point, index) => `${index ? 'L' : 'M'} ${x(point.year).toFixed(2)} ${y(point.value).toFixed(2)}`).join(' ');
@@ -75,7 +95,7 @@ function handleMove(event: MouseEvent<SVGSVGElement>) {
         })}
         {hoverYear != null && (
           <g aria-hidden="true">
-            <line x1={x(hoverYear)} x2={x(hoverYear)} y1={margin.top} y2={height - margin.bottom} stroke="#8c877e" strokeDasharray="3 4" />
+            <line x1={x(hoverYear)} x2={x(hoverYear)} y1={margin.top} y2={chartHeight - margin.bottom} stroke="#8c877e" strokeDasharray="3 4" />
             {series.map((line) => {
               const point = line.data[hoverYear - 2026];
               return <circle key={line.name} cx={x(hoverYear)} cy={y(point.value)} r="4" fill={line.color} stroke="#fff" strokeWidth="2" />;
@@ -84,7 +104,7 @@ function handleMove(event: MouseEvent<SVGSVGElement>) {
         )}
       </svg>
       {hoverYear != null && (
-        <div className="chart-tooltip" style={{ left: `${x(hoverYear) / width * 100}%`, top: `${nearestY / height * 100}%` }}>
+        <div className="chart-tooltip" style={{ left: `${x(hoverYear) / width * 100}%`, top: `${nearestY / chartHeight * 100}%` }}>
           <b>{hoverYear}</b>
           {series.map((line) => (
             <div key={line.name}><span style={{ color: line.color }}>●</span> {line.name}: <b>{tooltipY?.(line.data[hoverYear - 2026].value) ?? line.data[hoverYear - 2026].value.toLocaleString('en-US')}</b></div>
