@@ -489,48 +489,50 @@ export function App() {
         })}
       </section>
 
-      <section className="sticky-scenarios" aria-label="Scenario controls">
-        <div className="mobile-control-tools">
-          <div className="mobile-scenario-tabs" role="tablist" aria-label="Choose scenario controls">
-            {(['a', 'b'] as const).map((side) => (
-              <button
-                key={side}
-                id={`mobile-tab-${side}`}
-                type="button"
-                role="tab"
-                aria-controls={`mobile-panel-${side}`}
-                aria-selected={mobileSide === side}
-                tabIndex={mobileSide === side ? 0 : -1}
-                className={`mobile-scenario-tab mobile-tab-${side} ${mobileSide === side ? 'active' : ''}`}
-                onClick={() => setMobileSide(side)}
-                onKeyDown={(event) => {
-                  if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
-                  event.preventDefault();
-                  const nextSide: Side = event.key === 'Home' ? 'a' : event.key === 'End' ? 'b' : side === 'a' ? 'b' : 'a';
-                  setMobileSide(nextSide);
-                  document.getElementById(`mobile-tab-${nextSide}`)?.focus();
-                }}
-              >
-                <span>Scenario {side.toUpperCase()}</span><strong>{state[side].title}</strong>
-              </button>
-            ))}
+      <div className="sticky-lab">
+        <section className="sticky-scenarios" aria-label="Scenario controls">
+          <div className="mobile-control-tools">
+            <div className="mobile-scenario-tabs" role="tablist" aria-label="Choose scenario controls">
+              {(['a', 'b'] as const).map((side) => (
+                <button
+                  key={side}
+                  id={`mobile-tab-${side}`}
+                  type="button"
+                  role="tab"
+                  aria-controls={`mobile-panel-${side}`}
+                  aria-selected={mobileSide === side}
+                  tabIndex={mobileSide === side ? 0 : -1}
+                  className={`mobile-scenario-tab mobile-tab-${side} ${mobileSide === side ? 'active' : ''}`}
+                  onClick={() => setMobileSide(side)}
+                  onKeyDown={(event) => {
+                    if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
+                    event.preventDefault();
+                    const nextSide: Side = event.key === 'Home' ? 'a' : event.key === 'End' ? 'b' : side === 'a' ? 'b' : 'a';
+                    setMobileSide(nextSide);
+                    document.getElementById(`mobile-tab-${nextSide}`)?.focus();
+                  }}
+                >
+                  <span>Scenario {side.toUpperCase()}</span><strong>{state[side].title}</strong>
+                </button>
+              ))}
+            </div>
+            <div className="scenario-actions" aria-label="Scenario actions">
+              <button type="button" title="Swap scenarios" aria-label="Swap scenarios" onClick={() => setState((previous) => ({ ...previous, a: previous.b, b: previous.a, activePreset: null }))}>⇄</button>
+              <button type="button" title="Copy A to B" aria-label="Copy Scenario A to B" onClick={() => copyScenario('a', 'b')}>A→B</button>
+              <button type="button" title="Copy B to A" aria-label="Copy Scenario B to A" onClick={() => copyScenario('b', 'a')}>B→A</button>
+            </div>
           </div>
-          <div className="scenario-actions" aria-label="Scenario actions">
-            <button type="button" title="Swap scenarios" aria-label="Swap scenarios" onClick={() => setState((previous) => ({ ...previous, a: previous.b, b: previous.a, activePreset: null }))}>⇄</button>
-            <button type="button" title="Copy A to B" aria-label="Copy Scenario A to B" onClick={() => copyScenario('a', 'b')}>A→B</button>
-            <button type="button" title="Copy B to A" aria-label="Copy Scenario B to A" onClick={() => copyScenario('b', 'a')}>B→A</button>
+          <ScenarioControls side="a" scenario={state.a} mobileActive={mobileSide === 'a'} onChange={(patch) => updateScenario('a', patch)} onCountryChange={(id) => changeCountry('a', id)} onResetScenario={() => resetScenario('a')} />
+          <ScenarioControls side="b" scenario={state.b} mobileActive={mobileSide === 'b'} onChange={(patch) => updateScenario('b', patch)} onCountryChange={(id) => changeCountry('b', id)} onResetScenario={() => resetScenario('b')} />
+        </section>
+        <details className="sticky-advanced">
+          <summary><span>More assumptions</span><small>gross domestic product · population · fertility · longevity · retirement · output per worker</small></summary>
+          <div className="sticky-advanced-grid">
+            <ScenarioAssumptions side="a" scenario={state.a} mobileActive={mobileSide === 'a'} onChange={(patch) => updateScenario('a', patch)} />
+            <ScenarioAssumptions side="b" scenario={state.b} mobileActive={mobileSide === 'b'} onChange={(patch) => updateScenario('b', patch)} />
           </div>
-        </div>
-        <ScenarioControls side="a" scenario={state.a} mobileActive={mobileSide === 'a'} onChange={(patch) => updateScenario('a', patch)} onCountryChange={(id) => changeCountry('a', id)} onResetScenario={() => resetScenario('a')} />
-        <ScenarioControls side="b" scenario={state.b} mobileActive={mobileSide === 'b'} onChange={(patch) => updateScenario('b', patch)} onCountryChange={(id) => changeCountry('b', id)} onResetScenario={() => resetScenario('b')} />
-      </section>
-      <details className="sticky-advanced">
-        <summary><span>More assumptions</span><small>gross domestic product · population · fertility · longevity · retirement · output per worker</small></summary>
-        <div className="sticky-advanced-grid">
-          <ScenarioAssumptions side="a" scenario={state.a} mobileActive={mobileSide === 'a'} onChange={(patch) => updateScenario('a', patch)} />
-          <ScenarioAssumptions side="b" scenario={state.b} mobileActive={mobileSide === 'b'} onChange={(patch) => updateScenario('b', patch)} />
-        </div>
-      </details>
+        </details>
+      </div>
 
       <section className="time-deck">
         <div><span className="section-kicker">LOOK THROUGH TIME</span><h2>What does the society look like in <strong>{state.year}</strong>?</h2></div>
