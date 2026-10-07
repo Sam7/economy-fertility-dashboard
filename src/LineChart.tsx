@@ -6,6 +6,7 @@ export interface ChartPoint {
 }
 
 export interface ChartSeries {
+  id: string;
   name: string;
   color: string;
   data: ChartPoint[];
@@ -91,14 +92,14 @@ function handleMove(event: MouseEvent<SVGSVGElement>) {
         ))}
         {series.map((line) => {
           const path = line.data.map((point, index) => `${index ? 'L' : 'M'} ${x(point.year).toFixed(2)} ${y(point.value).toFixed(2)}`).join(' ');
-          return <path key={line.name} d={path} fill="none" stroke={line.color} strokeWidth="3" strokeLinejoin="round" strokeLinecap="round" />;
+          return <path key={line.id} d={path} fill="none" stroke={line.color} strokeWidth="3" strokeLinejoin="round" strokeLinecap="round" />;
         })}
         {hoverYear != null && (
           <g aria-hidden="true">
             <line x1={x(hoverYear)} x2={x(hoverYear)} y1={margin.top} y2={chartHeight - margin.bottom} stroke="#8c877e" strokeDasharray="3 4" />
             {series.map((line) => {
               const point = line.data[hoverYear - 2026];
-              return <circle key={line.name} cx={x(hoverYear)} cy={y(point.value)} r="4" fill={line.color} stroke="#fff" strokeWidth="2" />;
+              return <circle key={line.id} cx={x(hoverYear)} cy={y(point.value)} r="4" fill={line.color} stroke="#fff" strokeWidth="2" />;
             })}
           </g>
         )}
@@ -107,7 +108,7 @@ function handleMove(event: MouseEvent<SVGSVGElement>) {
         <div className="chart-tooltip" style={{ left: `${x(hoverYear) / width * 100}%`, top: `${nearestY / chartHeight * 100}%` }}>
           <b>{hoverYear}</b>
           {series.map((line) => (
-            <div key={line.name}><span style={{ color: line.color }}>●</span> {line.name}: <b>{tooltipY?.(line.data[hoverYear - 2026].value) ?? line.data[hoverYear - 2026].value.toLocaleString('en-US')}</b></div>
+            <div key={line.id}><span style={{ color: line.color }}>●</span> {line.name}: <b>{tooltipY?.(line.data[hoverYear - 2026].value) ?? line.data[hoverYear - 2026].value.toLocaleString('en-US')}</b></div>
           ))}
         </div>
       )}

@@ -31,8 +31,8 @@ const B_COLOR = '#d45f39';
 
 function scenarioChartSeries(a: ProjectionPoint[], b: ProjectionPoint[], accessor: (point: ProjectionPoint) => number, state: AppState): ChartSeries[] {
   return [
-    { name: state.a.title, color: A_COLOR, data: a.map((point) => ({ year: point.year, value: accessor(point) })) },
-    { name: state.b.title, color: B_COLOR, data: b.map((point) => ({ year: point.year, value: accessor(point) })) },
+    { id: 'scenario-a', name: state.a.title, color: A_COLOR, data: a.map((point) => ({ year: point.year, value: accessor(point) })) },
+    { id: 'scenario-b', name: state.b.title, color: B_COLOR, data: b.map((point) => ({ year: point.year, value: accessor(point) })) },
   ];
 }
 

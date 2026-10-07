@@ -4,6 +4,27 @@ import { App } from './App';
 import { decodeAppState } from './model';
 
 describe('scenario controls', () => {
+  it('keeps the two chart lines distinct when both scenario titles match', () => {
+    const { container } = render(<App />);
+    fireEvent.change(screen.getByLabelText('Scenario A country'), { target: { value: 'australia' } });
+    fireEvent.change(screen.getByLabelText('Scenario B country'), { target: { value: 'australia' } });
+
+    const migrationA = screen.getByRole('spinbutton', { name: 'Scenario A net migration per 1,000 people per year' });
+    const migrationB = screen.getByRole('spinbutton', { name: 'Scenario B net migration per 1,000 people per year' });
+    fireEvent.change(migrationA, { target: { value: '8.4' } });
+    fireEvent.change(migrationB, { target: { value: '8.1' } });
+    expect(decodeAppState(window.location.hash)?.a.title).toBe('Australia · custom');
+    expect(decodeAppState(window.location.hash)?.b.title).toBe('Australia · custom');
+
+    const chart = container.querySelector('svg[aria-label="Annual births projection line chart"]');
+    expect(chart).not.toBeNull();
+    fireEvent.change(migrationA, { target: { value: '8.5' } });
+
+    const scenarioLines = Array.from(chart!.querySelectorAll('path')).filter((path) => ['#3157d5', '#d45f39'].includes(path.getAttribute('stroke') ?? ''));
+    expect(scenarioLines.filter((path) => path.getAttribute('stroke') === '#3157d5')).toHaveLength(1);
+    expect(scenarioLines.filter((path) => path.getAttribute('stroke') === '#d45f39')).toHaveLength(1);
+  });
+
   it('applies valid numeric edits immediately and uses useful spinner steps', () => {
     const { container } = render(<App />);
     fireEvent.click(screen.getByText('More assumptions'));

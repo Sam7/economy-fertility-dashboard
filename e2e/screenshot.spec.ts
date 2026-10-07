@@ -105,6 +105,30 @@ test('updates economic charts as soon as a numeric spinner changes a value', asy
   await expect.poll(() => graphPath.getAttribute('d')).not.toBe(originalPath);
 });
 
+test('keeps chart lines distinct when both scenarios have the same title', async ({ page }) => {
+  const duplicateKeyWarnings: string[] = [];
+  page.on('console', (message) => {
+    if (message.type() === 'error' && message.text().includes('same key')) duplicateKeyWarnings.push(message.text());
+  });
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.goto('/');
+  await page.getByLabel('Scenario A country').selectOption('australia');
+  await page.getByLabel('Scenario B country').selectOption('australia');
+
+  const migrationA = page.getByRole('spinbutton', { name: 'Scenario A net migration per 1,000 people per year' });
+  const migrationB = page.getByRole('spinbutton', { name: 'Scenario B net migration per 1,000 people per year' });
+  await migrationA.fill('8.4');
+  await migrationB.fill('8.1');
+  await expect(page.locator('.scenario-a .compact-scenario-head h2')).toHaveText('Australia · custom');
+  await expect(page.locator('.scenario-b .compact-scenario-head h2')).toHaveText('Australia · custom');
+  await migrationA.fill('8.5');
+
+  const birthsChart = page.getByRole('img', { name: 'Annual births projection line chart' });
+  await expect(birthsChart.locator('path[stroke="#3157d5"]')).toHaveCount(1);
+  await expect(birthsChart.locator('path[stroke="#d45f39"]')).toHaveCount(1);
+  expect(duplicateKeyWarnings).toEqual([]);
+});
+
 test('keeps each animated reset glyph centered inside its circular button', async ({ page }) => {
   await page.goto('/');
   const reset = page.getByRole('button', { name: 'Reset Scenario A to 10m model population defaults' });
